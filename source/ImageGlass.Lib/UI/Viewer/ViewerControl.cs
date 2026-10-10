@@ -228,6 +228,13 @@ public partial class ViewerControl : PhControl
         var p = e.GetCurrentPoint(this);
         var requestRerender = false;
 
+        if (TryBeginFileDrag(e))
+        {
+            _mouseClickDownPoint = p.Position;
+            OnViewerPointerPressed(e, p);
+            return;
+        }
+
         // set the init point for panning
         if (p.Pointer.Type == PointerType.Mouse && !IsThumbButtonPressed(p))
         {
@@ -268,6 +275,7 @@ public partial class ViewerControl : PhControl
 
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
+        ResetFileDrag();
         var isThumbButton = IsThumbButton(e.InitialPressMouseButton);
 
         // a thumb button owns no drag gesture, so releasing one must not end a pan or a
@@ -291,6 +299,7 @@ public partial class ViewerControl : PhControl
 
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
     {
+        ResetFileDrag();
         // reset the panning point
         _lastMousePanPoint = null;
 
@@ -306,6 +315,7 @@ public partial class ViewerControl : PhControl
     {
         base.OnPointerMoved(e);
         var p = e.GetCurrentPoint(this);
+        if (TryContinueFileDrag(e)) return;
         var requestRerender = false;
 
         _zooming.ZoomedPoint = p.Position;
