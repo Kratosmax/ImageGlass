@@ -22,7 +22,7 @@ git diff --check
 - 版本唯一来源：`source/Directory.Build.props`，10.0.6.906；develop 的依赖版本与此前稳定版快照不同，不降级依赖。
 - 用户选定：完整显示时左键拖出；超出窗口时左键平移。相册栏拖出原文件已由用户验证可用。
 - 新功能主体在独立 partial 文件；现有 ViewerControl 加 10 行接入。自用 Pro 单行修改独立保存。
-- 状态：核心实现、本地 Lite 预览、资源管理器复制与基础交互验收已完成。终包构建、结构和哈希核验完成；用户本轮已授权提交、推送个人分支及发布到 fork。当前正在同步，线上状态以文末发布记录为准。
+- 状态：核心实现、本地 Lite 预览、资源管理器复制与基础交互验收已完成。个人分支与标签已推送 origin，终包 Release 已正式发布并完成线上校验，支持从个人分支跨设备接续。详情见文末发布记录。
 
 ## 已授权工作与当前待办
 
@@ -80,3 +80,13 @@ git diff --check
 - 从最终 ZIP 独立解压，真实桌面显示首次设置向导，简体中文已选中。终包未重复完整交互回归；上述交互结果来自此前 Lite 预览。
 - 新增文件：personal/Build-Package.ps1、personal/RELEASE_NOTES_CURRENT.md；更新 personal/README.md、personal/VALIDATION.md 和本文件。
 - 证据位于忽略目录 source/__artifacts/personal/release/package-verification.json 和 build-drag.1.log。
+
+## 已发布与远程同步（2026-10-10）
+
+- Release：https://github.com/Kratosmax/ImageGlass/releases/tag/personal-10.0.6.906-drag.1
+- 标签：personal-10.0.6.906-drag.1；固定发布提交：4662d0c7800c86a6b15a3bfa37d207ff232571cc。后续文档收尾提交不改变此标签或产物。
+- 功能提交：6589790a（拖出）、72039ead（自用 Pro）；维护文档/脚本提交：4662d0c7。
+- 已正式发布（draft=false），共两个附件：终包 ZIP 与 SHA256SUMS.txt。线上 ZIP 大小 104408880 字节，GitHub SHA256 digest 与本地一致；线上校验文件已下载回读、内容与本地一致。
+- 线上证据：忽略目录 release/github-published.json、release/online-check/SHA256SUMS.txt。
+- 源码与文档已同步个人分支，没有向 upstream 推送或创建 PR。无剩余发布阻塞；尚未实测项保持上述记录。
+- 空白检查：源码/文档通过；提交补丁文件本身时，diff --check 将 unified diff 的空白上下文行报告为空白提示，因此检查排除 personal/patches/*.patch；不删除补丁必需的上下文前缀。
