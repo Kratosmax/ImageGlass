@@ -1,0 +1,151 @@
+diff --git a/source/ImageGlass.Lib/UI/Viewer/ViewerControl.cs b/source/ImageGlass.Lib/UI/Viewer/ViewerControl.cs
+index a6363b6c7258e4061051cbc35b717197ce1385f4..0cd9c15cff8ed77780bf67df70410e80f9e64a18 100644
+--- a/source/ImageGlass.Lib/UI/Viewer/ViewerControl.cs
++++ b/source/ImageGlass.Lib/UI/Viewer/ViewerControl.cs
+@@ -228,6 +228,13 @@ public partial class ViewerControl : PhControl
+         var p = e.GetCurrentPoint(this);
+         var requestRerender = false;
+ 
++        if (TryBeginFileDrag(e))
++        {
++            _mouseClickDownPoint = p.Position;
++            OnViewerPointerPressed(e, p);
++            return;
++        }
++
+         // set the init point for panning
+         if (p.Pointer.Type == PointerType.Mouse && !IsThumbButtonPressed(p))
+         {
+@@ -268,6 +275,7 @@ public partial class ViewerControl : PhControl
+ 
+     protected override void OnPointerReleased(PointerReleasedEventArgs e)
+     {
++        ResetFileDrag();
+         var isThumbButton = IsThumbButton(e.InitialPressMouseButton);
+ 
+         // a thumb button owns no drag gesture, so releasing one must not end a pan or a
+@@ -291,6 +299,7 @@ public partial class ViewerControl : PhControl
+ 
+     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
+     {
++        ResetFileDrag();
+         // reset the panning point
+         _lastMousePanPoint = null;
+ 
+@@ -306,6 +315,7 @@ public partial class ViewerControl : PhControl
+     {
+         base.OnPointerMoved(e);
+         var p = e.GetCurrentPoint(this);
++        if (TryContinueFileDrag(e)) return;
+         var requestRerender = false;
+ 
+         _zooming.ZoomedPoint = p.Position;
+diff --git a/source/ImageGlass.Lib/UI/Viewer/ViewerControl_FileDrag.cs b/source/ImageGlass.Lib/UI/Viewer/ViewerControl_FileDrag.cs
+new file mode 100644
+index 0000000000000000000000000000000000000000..387256e9482e9aa27646633aa4b3fc00feb3100b
+--- /dev/null
++++ b/source/ImageGlass.Lib/UI/Viewer/ViewerControl_FileDrag.cs
+@@ -0,0 +1,103 @@
++/*
++ImageGlass personal fork - file drag from the fitted viewer.
++Licensed under the GNU General Public License, version 3 or later.
++*/
++using Avalonia;
++using Avalonia.Controls;
++using Avalonia.Input;
++using Avalonia.Platform.Storage;
++using ImageGlass.Common.Photoing;
++using ImageGlass.Common.ServiceProviders;
++using System;
++using System.Diagnostics;
++using System.IO;
++using System.Threading.Tasks;
++
++namespace ImageGlass.UI.Viewer;
++
++public partial class ViewerControl
++{
++    private const double FileDragThreshold = 6d;
++    private PointerPressedEventArgs? _fileDragTrigger;
++    private Point _fileDragStart;
++    private Photo? _fileDragPhoto;
++
++    private bool CanDragCurrentFile => SourceKind != PhotoSource.None
++        && !EnableSelection && !CanUseFreePan
++        && BitmapSize.Width > 0 && BitmapSize.Height > 0
++        && BitmapSize.Width * ZoomFactor / Dpi <= DrawingArea.Width + 0.5
++        && BitmapSize.Height * ZoomFactor / Dpi <= DrawingArea.Height + 0.5
++        && !FeatureManager.IsLocked(API.IG_CopyFiles)
++        && File.Exists(Photo?.FilePath);
++
++    private bool TryBeginFileDrag(PointerPressedEventArgs e)
++    {
++        ResetFileDrag();
++        var point = e.GetCurrentPoint(this);
++        if (e.Pointer.Type != PointerType.Mouse || e.KeyModifiers != KeyModifiers.None
++            || !point.Properties.IsLeftButtonPressed || !CanDragCurrentFile
++            || IsInNavButtonHitArea(point.Position)) return false;
++
++        // Match CalculateDrawingRegion: DestRect and pointer positions are logical pixels.
++        if (!DestRect.Contains(point.Position)) return false;
++
++        _fileDragTrigger = e;
++        _fileDragStart = point.Position;
++        _fileDragPhoto = Photo;
++        return true;
++    }
++
++    private bool TryContinueFileDrag(PointerEventArgs e)
++    {
++        if (_fileDragTrigger is null) return false;
++        var point = e.GetCurrentPoint(this);
++        if (!point.Properties.IsLeftButtonPressed || e.KeyModifiers != KeyModifiers.None
++            || !CanDragCurrentFile || !ReferenceEquals(Photo, _fileDragPhoto))
++        {
++            ResetFileDrag();
++            return true;
++        }
++
++        if (Math.Abs(point.Position.X - _fileDragStart.X) < FileDragThreshold
++            && Math.Abs(point.Position.Y - _fileDragStart.Y) < FileDragThreshold) return true;
++
++        var trigger = _fileDragTrigger;
++        var photo = _fileDragPhoto!;
++        ResetFileDrag();
++        _mouseClickDownPoint = null; // dropping/canceling must not also run a click action
++        _lastMousePanPoint = null;
++        e.Handled = true;
++        _ = DragCurrentFileAsync(trigger, photo);
++        return true;
++    }
++
++    private async Task DragCurrentFileAsync(PointerPressedEventArgs trigger, Photo photo)
++    {
++        try
++        {
++            if (!ReferenceEquals(Photo, photo) || !CanDragCurrentFile
++                || TopLevel.GetTopLevel(this) is not { } topLevel) return;
++
++            var file = await topLevel.StorageProvider.TryGetFileFromPathAsync(photo.FilePath);
++            if (file is null || !ReferenceEquals(Photo, photo) || !CanDragCurrentFile) return;
++
++            // Match GalleryItem's native file payload, but never offer Move or Link.
++            var item = new DataTransferItem();
++            item.SetFile(file);
++            item.SetText(photo.FilePath);
++            var data = new DataTransfer();
++            data.Add(item);
++            await DragDrop.DoDragDropAsync(trigger, data, DragDropEffects.Copy);
++        }
++        catch (Exception ex)
++        {
++            Debug.WriteLine($"{nameof(DragCurrentFileAsync)}: {ex.Message}");
++        }
++    }
++
++    private void ResetFileDrag()
++    {
++        _fileDragTrigger = null;
++        _fileDragPhoto = null;
++    }
++}

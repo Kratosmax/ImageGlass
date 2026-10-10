@@ -1,0 +1,13 @@
+diff --git a/source/ImageGlass.Lib/Core.cs b/source/ImageGlass.Lib/Core.cs
+index dfec737e46e6f73201a43498a94e27734a921996..29a9d4282471cd3c4a849a3c6b63f46e11bc30af 100644
+--- a/source/ImageGlass.Lib/Core.cs
++++ b/source/ImageGlass.Lib/Core.cs
+@@ -247,7 +247,7 @@ public static class Core
+     /// <summary>
+     /// Whether Pro features are unlocked (a valid license is active).
+     /// </summary>
+-    public static bool IsProEnabled => AppLicense is not null;
++    public static bool IsProEnabled => true; // Personal GPL source build; no official license is created.
+ 
+ 
+     /// <summary>
